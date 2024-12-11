@@ -42,7 +42,7 @@ class Dobot:
         msg = Message()
         msg.id = CommunicationProtocolIDs.GET_QUEUED_CMD_CURRENT_INDEX
         response = self._send_command(msg)
-        idx = struct.unpack_from('L', response.params, 0)[0]
+        idx = struct.unpack_from('L', response.params, 0)[0] if response else None
         return idx
 
     """
@@ -114,7 +114,7 @@ class Dobot:
         if self.verbose:
             print('pydobot: >>', msg)
         self.ser.write(msg.bytes())
-
+        self.ser.flush()
     """
         Executes the CP Command
     """
@@ -285,6 +285,13 @@ class Dobot:
         msg.params.extend(bytearray([level]))
         return self._send_command(msg)
 
+    def _home(self):
+        msg = Message()
+        msg.id = CommunicationProtocolIDs.SET_HOME_CMD
+        msg.ctrl = ControlValues.THREE
+        msg.params = bytearray(bytes([0x01]))
+        self._send_command(msg, True)
+
     def get_eio(self, addr):
         return self._get_eio_level(addr)
 
@@ -299,12 +306,18 @@ class Dobot:
             print('pydobot: %s closed' % self.ser.name)
         self.lock.release()
 
+    def home(self):
+        self._home()
+
     def go(self, x, y, z, r=0.):
         warnings.warn('go() is deprecated, use move_to() instead')
         self.move_to(x, y, z, r)
 
     def move_to(self, x, y, z, r, wait=False):
         self._set_ptp_cmd(x, y, z, r, mode=PTPMode.MOVL_XYZ, wait=wait)
+
+    def move_j(self, j1, j2, j3, j4, wait=False):
+        self._set_ptp_cmd(j1, j2, j3, j4, mode=PTPMode.MOVJ_ANGLE, wait=wait)
 
     def suck(self, enable):
         self._set_end_effector_suction_cup(enable)
